@@ -45,5 +45,5 @@ func (cmd *StopCmd) Run(
 	logs log.Logger,
 ) error {
 
-	return civo.Stop(providerCivo)
+	return civo.DeleteOrStop(providerCivo, true)
 }

@@ -11,6 +11,9 @@ options:
     description: The civo cloud region to create the VM in. E.g. LON1
     required: true
     default: ""
+  CIVO_DISK_SIZE:
+    description: The disk size to use.
+    default: "40"
   CIVO_DISK_IMAGE:
     description: The disk image to use.
     default: d927ad2f-5073-4ed6-b2eb-b8e61aef29a8

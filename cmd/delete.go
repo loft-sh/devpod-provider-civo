@@ -45,5 +45,5 @@ func (cmd *DeleteCmd) Run(
 	logs log.Logger,
 ) error {
 
-	return civo.Delete(providerCivo)
+	return civo.DeleteOrStop(providerCivo, false)
 }

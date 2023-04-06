@@ -3,7 +3,6 @@ package civo
 import (
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"os"
 
 	"github.com/loft-sh/devpod-provider-civo/pkg/options"
@@ -104,8 +103,8 @@ func AccessToken() (string, error) {
 	return string(result), err
 }
 
-func GetInjectKeypairScript(dir string) (string, error) {
-	publicKeyBase, err := ssh.GetPublicKeyBase(dir)
+func GetInjectKeypairScript(civoProvider *CivoProvider, volume *civogo.Volume) (string, error) {
+	publicKeyBase, err := ssh.GetPublicKeyBase(civoProvider.Config.MachineFolder)
 	if err != nil {
 		return "", err
 	}
@@ -116,6 +115,34 @@ func GetInjectKeypairScript(dir string) (string, error) {
 	}
 
 	resultScript := `#!/bin/sh
+mkdir -p /home/devpod
+# If disk is unformatted, let's format it first
+if [ "ext4" != "$(blkid -o value -s TYPE /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_` + volume.ID + `)" ]; then
+	mkfs.ext4 /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_` + volume.ID + `
+fi
+mount -o discard,defaults,noatime /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_` + volume.ID + ` /home/devpod
+
+# Move docker data dir
+if command -v docker; then
+	service docker stop
+fi
+cat > /etc/docker/daemon.json << EOF
+{
+  "data-root": "/home/devpod/.docker-daemon",
+  "live-restore": true
+}
+EOF
+
+# Make sure we only copy if volumes isn't initialized
+if [ ! -d "/home/devpod/.docker-daemon" ]; then
+  mkdir -p /home/devpod/.docker-daemon
+  rsync -aP /var/lib/docker/ /home/devpod/.docker-daemon
+fi
+
+if command -v docker; then
+	service docker start
+fi
+
 useradd devpod -d /home/devpod
 mkdir -p /home/devpod
 if grep -q sudo /etc/groups; then
@@ -137,11 +164,55 @@ func GetDevpodInstance(civoProvider *CivoProvider) (*civogo.Instance, error) {
 	return civoProvider.Client.FindInstance(civoProvider.Config.MachineID)
 }
 
-func Create(civoProvider *CivoProvider) error {
+// CreateOrReturnDisk will return the instance disk if exists, and create it
+// if it doesn't
+func CreateVolume(civoProvider *CivoProvider) (*civogo.Volume, error) {
+	network, err := civoProvider.Client.GetDefaultNetwork()
+	if err != nil {
+		return nil, err
+	}
+
+	volumeConfig := civogo.VolumeConfig{
+		Name:          civoProvider.Config.MachineID,
+		NetworkID:     network.ID,
+		Region:        civoProvider.Config.Region,
+		SizeGigabytes: civoProvider.Config.DiskSizeGB,
+		Bootable:      false,
+	}
+
+	_, err = civoProvider.Client.NewVolume(&volumeConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	return GetVolume(civoProvider)
+}
+
+func GetVolume(civoProvider *CivoProvider) (*civogo.Volume, error) {
+	return civoProvider.Client.FindVolume(civoProvider.Config.MachineID)
+}
+
+func CreateOrStart(civoProvider *CivoProvider, start bool) error {
 
 	config, err := civoProvider.Client.NewInstanceConfig()
 	if err != nil {
 		return err
+	}
+
+	var volume *civogo.Volume
+
+	// if it's a start, we already have the volume
+	if start {
+		volume, err = GetVolume(civoProvider)
+		if err != nil {
+			return err
+		}
+
+	} else {
+		volume, err = CreateVolume(civoProvider)
+		if err != nil {
+			return err
+		}
 	}
 
 	config.PublicIPRequired = "true"
@@ -150,23 +221,27 @@ func Create(civoProvider *CivoProvider) error {
 	config.Size = civoProvider.Config.MachineType
 	config.Region = civoProvider.Config.Region
 	config.PublicIPRequired = "true"
-	userData, err := GetInjectKeypairScript(civoProvider.Config.MachineFolder)
+	userData, err := GetInjectKeypairScript(civoProvider, volume)
 	if err != nil {
 		return err
 	}
 
 	config.Script = userData
-	// config.Tags = []string{""}
 
 	instance, err := civoProvider.Client.CreateInstance(config)
 	if err != nil {
 		return err
 	}
 
-	fmt.Println(instance)
+	_, err = civoProvider.Client.AttachVolume(volume.ID, instance.ID)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
-func Delete(civoProvider *CivoProvider) error {
+
+func DeleteOrStop(civoProvider *CivoProvider, stop bool) error {
 	instance, err := GetDevpodInstance(civoProvider)
 	if err != nil {
 		return err
@@ -177,32 +252,17 @@ func Delete(civoProvider *CivoProvider) error {
 		return err
 	}
 
-	return nil
-}
+	// if we're NOT stopping, then we're deleting, let's wipe volumes.
+	if !stop {
+		volume, err := GetVolume(civoProvider)
+		if err != nil {
+			return err
+		}
 
-func Start(civoProvider *CivoProvider) error {
-	instance, err := GetDevpodInstance(civoProvider)
-	if err != nil {
-		return err
-	}
-
-	_, err = civoProvider.Client.StartInstance(instance.ID)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func Stop(civoProvider *CivoProvider) error {
-	instance, err := GetDevpodInstance(civoProvider)
-	if err != nil {
-		return err
-	}
-
-	_, err = civoProvider.Client.StopInstance(instance.ID)
-	if err != nil {
-		return err
+		_, err = civoProvider.Client.DeleteVolume(volume.ID)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -211,7 +271,14 @@ func Stop(civoProvider *CivoProvider) error {
 func Status(civoProvider *CivoProvider) (client.Status, error) {
 	instance, err := GetDevpodInstance(civoProvider)
 	if err != nil {
-		return client.StatusNotFound, nil
+		// If the instance is removed but volume is there
+		// it means it is only stopped
+		_, err2 := GetVolume(civoProvider)
+		if err2 != nil {
+			return client.StatusNotFound, nil
+		}
+
+		return client.StatusStopped, nil
 	}
 
 	switch {
