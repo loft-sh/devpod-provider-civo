@@ -44,5 +44,5 @@ func (cmd *CreateCmd) Run(
 	logs log.Logger,
 ) error {
 
-	return civo.CreateOrStart(providerCivo, false)
+	return civo.Create(providerCivo)
 }
