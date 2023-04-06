@@ -1,0 +1,86 @@
+name: civo
+version: ##VERSION##
+description: |-
+  DevPod on CIVO Cloud
+options:
+  CIVO_API_KEY:
+    description: The civo api key to use
+    required: true
+    default: ""
+  CIVO_REGION:
+    description: The civo cloud region to create the VM in. E.g. LON1
+    required: true
+    default: ""
+  CIVO_DISK_IMAGE:
+    description: The disk image to use.
+    default: d927ad2f-5073-4ed6-b2eb-b8e61aef29a8
+  CIVO_INSTANCE_TYPE:
+    description: The machine type to use.
+    default: g3.xsmall
+  INACTIVITY_TIMEOUT:
+    description: If defined, will automatically stop the VM after the inactivity period.
+    default: 10m
+  INJECT_GIT_CREDENTIALS:
+    description: "If DevPod should inject git credentials into the remote host."
+    default: "true"
+  INJECT_DOCKER_CREDENTIALS:
+    description: "If DevPod should inject docker credentials into the remote host."
+    default: "true"
+  AGENT_PATH:
+    description: The path where to inject the DevPod agent to.
+    default: /var/lib/toolbox/devpod
+  CIVO_TOKEN:
+    local: true
+    hidden: true
+    cache: 5m
+    description: "The CIVO auth token to use"
+    command: |-
+      ${CIVO_PROVIDER} token
+agent:
+  path: ${AGENT_PATH}
+  inactivityTimeout: ${INACTIVITY_TIMEOUT}
+  injectGitCredentials: ${INJECT_GIT_CREDENTIALS}
+  injectDockerCredentials: ${INJECT_DOCKER_CREDENTIALS}
+  binaries:
+    CIVO_PROVIDER:
+      - os: linux
+        arch: amd64
+        path: https://github.com/loft-sh/devpod-provider-civo/releases/download/##VERSION##/devpod-provider-civo-linux-amd64
+        checksum: ##CHECKSUM_LINUX_AMD64##
+      - os: linux
+        arch: arm64
+        path: https://github.com/loft-sh/devpod-provider-civo/releases/download/##VERSION##/devpod-provider-civo-linux-arm64
+        checksum: ##CHECKSUM_LINUX_ARM64##
+  exec:
+    shutdown: |-
+      ${CIVO_PROVIDER} stop
+binaries:
+  CIVO_PROVIDER:
+    - os: linux
+      arch: amd64
+      path: https://github.com/loft-sh/devpod-provider-civo/releases/download/##VERSION##/devpod-provider-civo-linux-amd64
+      checksum: ##CHECKSUM_LINUX_AMD64##
+    - os: linux
+      arch: arm64
+      path: https://github.com/loft-sh/devpod-provider-civo/releases/download/##VERSION##/devpod-provider-civo-linux-arm64
+      checksum: ##CHECKSUM_LINUX_ARM64##
+    - os: darwin
+      arch: amd64
+      path: https://github.com/loft-sh/devpod-provider-civo/releases/download/##VERSION##/devpod-provider-civo-darwin-amd64
+      checksum: ##CHECKSUM_DARWIN_AMD64##
+    - os: darwin
+      arch: arm64
+      path: https://github.com/loft-sh/devpod-provider-civo/releases/download/##VERSION##/devpod-provider-civo-darwin-arm64
+      checksum: ##CHECKSUM_DARWIN_ARM64##
+    - os: windows
+      arch: amd64
+      path: https://github.com/loft-sh/devpod-provider-civo/releases/download/##VERSION##/devpod-provider-civo-windows-amd64.exe
+      checksum: ##CHECKSUM_WINDOWS_AMD64##
+exec:
+  init: ${CIVO_PROVIDER} init
+  command: ${CIVO_PROVIDER} command
+  create: ${CIVO_PROVIDER} create
+  delete: ${CIVO_PROVIDER} delete
+  start: ${CIVO_PROVIDER} start
+  stop: ${CIVO_PROVIDER} stop
+  status: ${CIVO_PROVIDER} status
