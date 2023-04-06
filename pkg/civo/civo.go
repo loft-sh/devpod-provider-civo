@@ -126,12 +126,16 @@ mount -o discard,defaults,noatime /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_` + v
 if command -v docker; then
 	service docker stop
 fi
+mkdir -p /etc/docker
 cat > /etc/docker/daemon.json << EOF
 {
   "data-root": "/home/devpod/.docker-daemon",
   "live-restore": true
 }
 EOF
+
+chattr +i /etc/docker/daemon.json
+chattr +i /etc/docker/
 
 # Make sure we only copy if volumes isn't initialized
 if [ ! -d "/home/devpod/.docker-daemon" ]; then

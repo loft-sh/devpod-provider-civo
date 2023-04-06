@@ -6,6 +6,7 @@ options:
   CIVO_API_KEY:
     description: The civo api key to use
     required: true
+    password: true
     default: ""
   CIVO_REGION:
     description: The civo cloud region to create the VM in. E.g. LON1
