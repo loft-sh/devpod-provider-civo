@@ -40,9 +40,9 @@ func (cmd *InitCmd) Run(
 	machine *provider.Machine,
 	logs log.Logger,
 ) error {
-	civoToken := os.Getenv("CIVO_TOKEN")
+	civoToken := os.Getenv("CIVO_API_KEY")
 	if civoToken == "" {
-		return errors.Errorf("CIVO_TOKEN is not set")
+		return errors.Errorf("CIVO_API_KEY is not set")
 	}
 
 	civoRegion := os.Getenv("CIVO_REGION")
