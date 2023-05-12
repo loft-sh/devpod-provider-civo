@@ -53,17 +53,9 @@ func (cmd *CommandCmd) Run(
 		return fmt.Errorf("command environment variable is missing")
 	}
 
-	// get private key
-	privateKey, err := ssh.GetPrivateKeyRawBase(providerCivo.Config.MachineFolder)
-
-	if err != nil {
-		return fmt.Errorf("load private key: %w", err)
-	}
-
 	// get instance
 	instance, err := civo.GetDevpodInstance(providerCivo)
-
-	sshClient, err := ssh.NewSSHClient("devpod", instance.PublicIP+":22", privateKey)
+	sshClient, err := ssh.NewSSHPassClient("civo", instance.PublicIP+":22", instance.InitialPassword)
 
 	if err != nil {
 		return errors.Wrap(err, "create ssh client")
@@ -72,5 +64,5 @@ func (cmd *CommandCmd) Run(
 	defer sshClient.Close()
 
 	// run command
-	return ssh.Run(sshClient, command, os.Stdin, os.Stdout, os.Stderr)
+	return ssh.Run(context.Background(), sshClient, command, os.Stdin, os.Stdout, os.Stderr)
 }

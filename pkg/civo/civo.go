@@ -1,14 +1,12 @@
 package civo
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"os"
 
 	"github.com/loft-sh/devpod-provider-civo/pkg/options"
 	"github.com/loft-sh/devpod/pkg/client"
 	"github.com/loft-sh/devpod/pkg/log"
-	"github.com/loft-sh/devpod/pkg/ssh"
 
 	"github.com/civo/civogo"
 	"github.com/pkg/errors"
@@ -103,35 +101,6 @@ func AccessToken() (string, error) {
 	return string(result), err
 }
 
-func GetInjectKeypairScript(dir string) (string, error) {
-	publicKeyBase, err := ssh.GetPublicKeyBase(dir)
-	if err != nil {
-		return "", err
-	}
-
-	publicKey, err := base64.StdEncoding.DecodeString(publicKeyBase)
-	if err != nil {
-		return "", err
-	}
-
-	resultScript := `#!/bin/sh
-useradd devpod -d /home/devpod
-mkdir -p /home/devpod
-if grep -q sudo /etc/groups; then
-	usermod -aG sudo devpod
-elif grep -q wheel /etc/groups; then
-	usermod -aG wheel devpod
-fi
-echo "devpod ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/91-devpod
-mkdir -p /home/devpod/.ssh
-echo "` + string(publicKey) + `" >> /home/devpod/.ssh/authorized_keys
-chmod 0700 /home/devpod/.ssh
-chmod 0600 /home/devpod/.ssh/authorized_keys
-chown -R devpod:devpod /home/devpod`
-
-	return resultScript, nil
-}
-
 func GetDevpodInstance(civoProvider *CivoProvider) (*civogo.Instance, error) {
 	return civoProvider.Client.FindInstance(civoProvider.Config.MachineID)
 }
@@ -149,13 +118,6 @@ func Create(civoProvider *CivoProvider) error {
 	config.Size = civoProvider.Config.MachineType
 	config.Region = civoProvider.Config.Region
 	config.PublicIPRequired = "true"
-	userData, err := GetInjectKeypairScript(civoProvider.Config.MachineFolder)
-	if err != nil {
-		return err
-	}
-
-	config.Script = userData
-	// config.Tags = []string{""}
 
 	_, err = civoProvider.Client.CreateInstance(config)
 	if err != nil {
