@@ -34,7 +34,7 @@ This provides has the seguent options
 |--------------------|----------|---------------------------------------|-------------------------|
 | CIVO_DISK_IMAGE    | false    | The disk image to use.                | d927ad2f-5073-4ed6-b2eb-b8e61aef29a8   |
 | CIVO_DISK_SIZE     | false    | The disk size to use.                 | 40                       |
-| CIVO_INSTANCE_TYPE | false    | The machine type to use.              | g3.xsmall                |
+| CIVO_INSTANCE_TYPE | false    | The machine type to use.              | g3.large                |
 | CIVO_REGION        | true     | The civo cloud region to create the VM |                         |
 | CIVO_API_KEY       | true     | The api key to use                    |                         |
 
