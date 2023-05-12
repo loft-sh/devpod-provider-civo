@@ -40,7 +40,13 @@ options:
     default: d927ad2f-5073-4ed6-b2eb-b8e61aef29a8
   CIVO_INSTANCE_TYPE:
     description: The machine type to use.
-    default: g3.xsmall
+    default: g3.large
+    suggestions:
+      - g3.small
+      - g3.medium
+      - g3.large
+      - g3.xlarge
+      - g3.2xlarge
   INACTIVITY_TIMEOUT:
     description: If defined, will automatically stop the VM after the inactivity period.
     default: 10m
