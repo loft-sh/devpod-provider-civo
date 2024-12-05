@@ -50,7 +50,7 @@ func (cmd *InitCmd) Run(
 		return errors.Errorf("CIVO_REGION is not set")
 	}
 
-	_, err := options.FromEnv(true)
+	_, err := options.FromEnv(true, true)
 
 	if err != nil {
 		return err

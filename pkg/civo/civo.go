@@ -19,7 +19,7 @@ type CivoToken struct {
 
 var tokenJSON CivoToken
 
-func NewProvider(logs log.Logger) (*CivoProvider, error) {
+func NewProvider(withFolder bool, logs log.Logger) (*CivoProvider, error) {
 	civoToken := os.Getenv("CIVO_TOKEN")
 	if civoToken != "" {
 		err := json.Unmarshal([]byte(civoToken), &tokenJSON)
@@ -48,7 +48,7 @@ func NewProvider(logs log.Logger) (*CivoProvider, error) {
 		return nil, errors.Errorf("CIVO_REGION is not set")
 	}
 
-	config, err := options.FromEnv(false)
+	config, err := options.FromEnv(false, withFolder)
 
 	if err != nil {
 		return nil, err
